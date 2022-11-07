@@ -1,0 +1,661 @@
+1.MVC MVVC
+    - MVC
+        模型(model)－视图(view)－控制器(controller)的缩写
+        Model（模型）：处理数据逻辑的部分。通常模型对象负责在数据库中存取数据
+        View（视图）：处理数据显示的部分。通常视图是依据模型数据创建的
+        Controller（控制器）：处理用户交互的部分。通常控制器负责从视图读取数据，控制用户输入，并向模型发送数据
+        MVC 的思想：一句话描述就是 Controller 负责将 Model 的数据用 View 显示出来
+
+    - MVVM
+        ViewModel 层：做了两件事达到了数据的双向绑定 一是将【模型】转化成【视图】，
+        即将后端传递的数据转化成所看到的页面。实现的方式是：数据绑定。二是将【视图】转化成【模型】，即
+        将所看到的页面转化成后端的数据。实现的方式是：DOM 事件监听。
+
+        MVVM 与 MVC 最大的区别就是：它实现了 View 和 Model 的自动同步，也就是当 Model 的属性改变时，
+        我们不用再自己手动操作 Dom 元素，来改变 View 的显示，而是改变属性后该属性对应 View 层显示会自动改变
+
+        在 MVVM 中，View 不知道 Model 的存在，Model 和 ViewModel 也观察不到 View，这种低耦合模式提高代码的可重用性
+
+        为什么官方要说 Vue 没有完全遵循 MVVM 思想呢
+        严格的 MVVM 要求 View 不能和 Model 直接通信，而 Vue 提供了$refs 这个属性，
+        让 Model 可以直接操作 View，违反了这一规定，所以说 Vue 没有完全遵循 MVVM。
+        
+2.为什么 data 是一个函数
+    √
+
+3.组件通讯有哪几种方式
+    见笔记
+    props(父<->子,可以传递函数来实现子->父),自定义事件(子->父),全局事件总线(全),消息订阅发布(全),vuex(全),插槽(父<->子)
+    代码见Communication
+    - v-model(父子数据同步)
+        以下是语法糖的原理
+        - 绑定原生DOM时
+            原理:用v-bind绑定msg(:value=msg),再用DOM原生事件input(当表单元素发生文本的变化的时候就会立即调用回调)
+            写一个回调,内容是 msg = $event.target.value
+        - 绑定组件时(父子通信)
+            在父组件中props传数据msg(:value=msg),写一个自定义事件@事件某某="msg = $event",回调是修改msg
+            子组件中<input :value="value"(收到props数据单向绑定在输入框上)  @input="$emit('事件',$event.target.value)"/>
+            并给输入框写一个原生事件,input,触发自定义事件,传参并引起父组件的回调函数变化
+    - .sync(父子数据同步)
+        <Child :money.sync="money"></Child>是
+        <Child :money="money" @update:money="money = $event"></Child>的语法糖
+        在子组件中需要$emit('update:money',参数)"
+    - $attrs与$listeners(父子组件通信)
+        在子组件中使用这两个
+        $attrs：组件实例的属性，可以获取到父亲传递的props数据（前提子组件没有通过props接受,已经接收的数据不会出现在$attrs中）
+        $listeners：组件实例的属性，可以获取到父亲给子组件绑定的自定义事件（对象形式呈现）,通过它触发父组件的回调
+    - $children与$parent(父子组件通信)
+        ref:可以在父组件内部获取子组件---实现父子通信(不能在子中获取父)
+        $children:可以在父组件内部获取全部的子组件【返回数组】
+        $parent:可以在子组件内部获取唯一的父组件【返回组件实例】
+        this.$refs.XXX获取组件后,可以直接操控这个组件的数据和方法
+        比如在父组件直接修改子组件的数据 this.$refs.xm.money -= money;
+        比如this.$children[0].money -=money;
+
+4.Vue 的生命周期方法有哪些 一般在哪一步发请求
+    看图
+    备注:
+    beforeCreate在实例初始化之后
+    created这个阶段 vue 实例在内存中已经创建好了,这里没有$el,如果非要想与 Dom 进行交互，可以通过 vm.$nextTick 来访问 Dom
+    beforeMount可以修改dom,但是会被后面的操作覆盖,未经vue编译,就是指比如{{n}}就是字符串,没特殊含义
+    beforeDestroy 实例销毁之前调用。在这一步，实例仍然完全可用。我们可以在这时进行善后收尾工作
+    destroyed Vue 实例销毁后调用。调用后，Vue 实例指示的所有东西都会解绑定，所有的子实例也会被销毁。 
+
+    额外的钩子函数:
+    activated keep-alive 专属，组件被激活时调用
+    deactivated keep-alive 专属，组件被销毁时调用
+
+    可以在钩子函数 created、beforeMount、mounted 中进行异步请求，因为在这三个钩子函数中
+    ，data 已经创建，可以将服务端端返回的数据进行赋值。
+    如果异步请求不需要依赖 Dom 推荐在 created 钩子函数中调用异步请求，因为在 created 钩子函数中调用异步请求有以下优点：
+    能更快获取到服务端数据，减少页面  loading 时间；
+
+    其他注意:
+    	常用的生命周期钩子：
+			1.mounted: 发送ajax请求、启动定时器、绑定自定义事件、订阅消息等【初始化操作】。
+			2.beforeDestroy: 清除定时器、解绑自定义事件、取消订阅消息等【收尾工作】。
+
+	关于销毁Vue实例
+		1.销毁后借助Vue开发者工具看不到任何信息。
+		2.! 销毁后自定义事件会失效，但原生DOM事件依然有效。
+		3.一般不会在beforeDestroy操作数据，因为即便操作数据，也不会再触发更新流程了。
+
+5.v-if 和 v-show 的区别
+    √
+    v-show是控制css的display是否为none来隐藏或展示，dom元素一直都是在的。而v-if显示隐藏是直接将整个dom元素添加或删除。
+
+6.说说 vue 内置指令
+    单向绑定(v-bind)：数据只能从data流向页面。
+	双向绑定(v-model)：数据不仅能从data流向页面，还可以从页面流向data。
+    v-on:xxx 或 @xxx 绑定事件:
+    v-if/else
+    v-show
+    v-for
+        1.用于展示列表数据
+		2.语法：v-for="(item, index) in/of xxx" :key="yyy"
+		3.可遍历：数组、对象、字符串（用的很少）、指定次数（用的很少）
+    内置指令:5种,text/html/cloak/once/pre
+    v-cloak 指令设置样式，这些样式会在 Vue 实例编译结束时，从绑定的 HTML 元素上被移除。
+    当网络较慢，网页还在加载 Vue.js ，而导致 Vue 来不及渲染，这时页面就会显示出 Vue 源代码。我们可以使用 v-cloak 指令来解决这一问题。
+
+7.怎样理解 Vue 的单向数据流
+    数据总是从父组件传到子组件，子组件没有权利修改父组件传过来的数据，只能请求父组件对原始数据进行修改。
+    这样会防止从子组件意外改变父级组件的状态，从而导致你的应用的数据流向难以理解。
+    接收到的props无法更改 想要修改 在data里用另外一个变量接收 然后修改这个变量
+
+8.computed 和 watch 的区别和运用的场景
+    computed它会根据你所依赖的数据动态显示新的计算结果。
+    计算结果会被缓存，(在html页面)多次调用这个计算属性,只会执行一次,而不像methods调用多少次,就会执行多少次
+    在它依赖的属性值改变之后，会重新调用对应的getter来计算
+    (关于setter,给computed重新赋值会触发该函数,不一定要return)
+
+    watch 监听到值的变化就会执行回调，在回调中可以进行一些逻辑操作。
+    在方法中会传入 newVal 和 oldVal。可以提供输入值无效
+   
+    如果一个数据依赖于其他数据，那么把这个数据设计为computed的  
+    如果你需要在某个数据变化时做一些事情，使用watch来观察这个数据变化
+
+9.v-if 与 v-for 为什么不建议一起使用
+    √
+    因为v-for的优先级比v-if高会先循环渲染出数据后才会进行条件渲染判断 造成性能浪费
+
+    可以把vfor写在一个template上,作用是模板占位符，可帮助我们包裹元素，
+    但在循环过程当中，template不会被渲染到页面上, 所有加一层template标签会不会是一个不错的选择
+
+10.Vue2.0 响应式数据的原理
+    首先了解数据代理：通过一个对象代理对另一个对象中属性的操作,例如访问obj2的x 返回obj的x,修改obj2的x 即修改obj的x
+    Vue中的数据代理：通过vm对象来代理data对象中属性的操作（读/写）,通过Object.defineProperty()把data对象中所有属性添加到vm上。
+					为每一个添加到vm上的属性，都指定一个getter/setter。在getter/setter内部去操作（读/写）data中对应的属性。
+                    修改访问这个属性会触发getter/setter方法,方法内部会更新视图,就变成了响应式的属性
+
+
+[    (将data对象数据传入observer方法,是对象则调用defineReactive
+    通过 defineReactive 方法，)
+    对data对象的每一条属性,使用 Object.defineProperty 将属性进行劫持，
+    实现属性的set get,修改访问这个属性会触发get set方法,方法内部会更新视图,就变成了响应式的属性
+    (对于对象,需要深度监听,否则代理的就是对象的地址,对象属性最终还是基本属性,可以代理)
+    对于数组则是通过重写数组方法来实现。因为不能给数组的每个项都实现数据代理
+]
+
+    对象中后追加的属性，Vue默认不做响应式处理
+	如需给后添加的属性做响应式，请使用如下API：
+	Vue.set(target，propertyName/index，value) 或 
+	vm.$set(target，propertyName/index，value)
+    删除用
+    Vue.delete
+
+11.Vue 如何检测数组变化
+    数组考虑性能原因没有用 defineProperty 对数组的每一项进行拦截
+    而是选择对 7 种数组（push,shift,pop,splice,unshift,sort,reverse）方法进行重写
+
+14.Vue 的父子组件生命周期钩子函数执行顺序
+    √
+
+15.虚拟 DOM 是什么 有什么优缺点
+    数据改变 -> 虚拟dom(计算变更) -> 操作dom -> 视图改变
+
+    由于在浏览器中操作 DOM 是很昂贵的。频繁的操作 DOM，会产生一定的性能问题。这就是虚拟 Dom 的产生原因。
+    Virtual DOM 本质就是用一个原生的 JS 对象去描述一个 DOM 节点，是对真实 DOM 的一层抽象。
+    操作js模拟的虚拟dom,更节省性能
+
+    它会比较虚拟dom变化,复用不变的dom,以此让性能开支变少
+
+    提升性能:
+    若一次操作中有 10 次更新 DOM 的动作，
+    虚拟 DOM 不会立即操作 DOM，而是将这 10 次更新的 diff 内容保存到本地一个 JS 对象中，
+    最终将这个 JS 对象一次性 attch 到 DOM 树上，再进行后续操作，避免大量无谓的计算量。
+    所以，用 JS 对象模拟 DOM 节点的好处是，页面的更新可以先全部反映在 JS 对象(虚拟 DOM )上，
+    操作内存中的 JS 对象的速度显然要更快，等更新完成后，再将最终的 JS 对象映射成真实的 DOM，交由浏览器去绘制。
+
+    缺点:
+    首次渲染大量 DOM 时，由于多了一层虚拟 DOM 的计算，会比 innerHTML 插入慢
+
+16.v-model 原理
+    见3
+
+17.v-for 为什么要加 key
+    当添加了新的dom 
+	1. 虚拟DOM中key的作用：
+		key是虚拟DOM对象的标识，当数据发生变化时，Vue会根据【新数据】生成【新的虚拟DOM】, 
+		随后Vue进行【新虚拟DOM】与【旧虚拟DOM】的差异比较，比较规则如下：
+										
+	2.对比规则：
+		(1).旧虚拟DOM中找到了与新虚拟DOM相同的key：
+			①.若虚拟DOM中内容没变, 直接使用之前的真实DOM！(不是使用虚拟dom)
+			②.若虚拟DOM中内容变了, 则生成新的真实DOM，随后替换掉页面中之前的真实DOM。
+
+		(2).旧虚拟DOM中未找到与新虚拟DOM相同的key
+			创建新的真实DOM，随后渲染到到页面。
+												
+	3. 用index作为key可能会引发的问题：(不写key默认index作为key)
+		1. 若对数据进行：逆序添加、逆序删除等破坏顺序操作:
+			会产生没有必要的真实DOM更新 ==> 界面效果没问题, 但效率低。
+            (因为新旧虚拟dom每个key都对不上,虽然结果是对的,但是其实每个旧的dom都被替换了)
+
+		2. 如果结构中还包含输入类的DOM：
+			会产生错误DOM更新 ==> 界面有问题。
+            因为输入类的dom,比如input它的内容存在内存里,在对比的时候对比的是结构(不包括内存)是不变的,就会复用,导致错误
+
+	4. 开发中如何选择key?:
+		1.最好使用每条数据的唯一标识作为key, 比如id、手机号、身份证号、学号等唯一值。
+		2.如果不存在对数据的逆序添加、逆序删除等破坏顺序操作，仅用于渲染列表用于展示，
+		使用index作为key是没有问题的。
+
+18.Vue 事件绑定原理
+    原生事件绑定是通过 addEventListener 绑定给真实元素的
+    组件事件绑定是通过 Vue 自定义的$on 实现的
+
+    如果要在组件上使用原生事件，需要加.native 修饰符，这样就相当于在父组件中把子组件当做普通 html 标签，然后加上原生事件。
+
+    $on、$emit 是基于发布订阅模式的，维护一个事件中心
+    on 的时候将事件按名称存在事件中心里，称之为订阅者
+    然后 emit 将对应的事件进行发布，去执行事件中心里的对应的监听器
+
+19.vue-router 路由钩子函数是什么 执行顺序是什么
+    1.路由简介
+        - 概念
+            vue的单页面应用是基于路由和组件的，路由用于设定访问路径，并将路径和组件映射起来。
+            
+            传统的页面应用，是用一些超链接来实现页面切换和跳转的。
+            在vue-router单页面应用中，则是通过路径之间的切换实现组件的切换。
+
+            每个组件都有自己的$route属性，里面存储着自己的路由信息。
+            整个应用只有一个router，可以通过组件的$router属性获取到
+        - 创建
+            new VueRouter({
+                routes:[
+                    {
+                        path:'/about',
+                        component:About
+                    },
+                    {
+                        path:'/home',
+                        component:Home
+                    }
+                ]
+            })
+            需要引入
+        - 跳转
+            <router-link class="list-group-item" active-class="active" to="/about">About</router-link>
+            link跳转 to是路由路径
+        - 展示
+            <router-view></router-view>
+    2.多级路由
+        routes:[
+            {
+                path:'/about',
+                component:About,
+            },
+            {
+                path:'/home',
+                component:Home,
+                children:[ //通过children配置子级路由
+                    {
+                        path:'news', //此处一定不要写：/news
+                        component:News
+                    },
+                    {
+                        path:'message',//此处一定不要写：/message
+                        component:Message
+                    }
+                ]
+            }
+        ]
+    3.路由的query参数
+        - 字符串写法,写在to路径的后面
+        <router-link :to="/home/message/detail?id=666&title=你好">跳转</router-link>
+        
+       - 把to写成对象,属性有path和query对象(里面有参数)
+        <router-link 
+            :to="{
+                path:'/home/message/detail',
+                query:{
+                id:666,
+                    title:'你好'
+                }
+            }"
+        >跳转</router-link>
+
+        - 接收参数
+            $route.query.XX
+
+    4.命名路由
+        可以简化路由的跳转
+        用name在路由定义的时候命名
+        那么to后面的path可以改成name
+
+    5.路由的params参数
+        - 设置
+			{
+				name:'xiangqing',
+				path:'detail/:id/:title', //使用占位符提前声明接收params参数
+				component:Detail
+			}
+        
+        - 传递参数
+        <!-- 跳转并携带params参数，to的字符串写法 -->
+        <router-link :to="/home/message/detail/666/你好">跳转</router-link>
+                        
+        <!-- 跳转并携带params参数，to的对象写法 -->
+        <router-link 
+            :to="{
+                name:'xiangqing',
+                params:{
+                id:666,
+                    title:'你好'
+                }
+            }"
+        >跳转</router-link>
+        特别注意：路由携带params参数时，若使用to的对象写法，
+        则不能使用path配置项，必须使用name配置！
+
+        - 接收参数
+            $route.params.XX
+            $route.params.XX
+
+    6.replace属性
+        作用：控制路由跳转时操作浏览器历史记录的模式,记录方式是栈
+        浏览器的历史记录有两种写入方式：分别为push和replace，
+        push是追加历史记录，replace是替换当前记录。路由跳转时候默认为push
+        开启replace模式：<router-link replace .......>News</router-link>
+        通过浏览器的前进后退访问
+
+    7.编程式路由导航
+        另一种路由跳转方式
+        //$router的两个API
+        this.$router.push({
+            name:'xiangqing',
+                params:{
+                    id:xxx,
+                    title:xxx
+                }
+        })
+
+        this.$router.replace({
+            name:'xiangqing',
+                params:{
+                    id:xxx,
+                    title:xxx
+                }
+        })
+        this.$router.forward() //前进
+        this.$router.back() //后退
+        this.$router.go() //可前进也可后退
+
+    8.缓存路由组件
+        让不展示的路由组件保持挂载，不被销毁
+        <keep-alive include="News"> 
+            <router-view></router-view>
+        </keep-alive>
+        给view套一层keep-alive,多个路由用数组
+        
+    9.路由守卫
+        https://juejin.cn/post/6844903924760051725
+        导航守卫就是路由跳转过程中的一些钩子函数。在每一个过程中都有一函数，这个函数能让你操作一些其他的事儿，这就是导航守卫。
+        对路由进行权限控制,有全局守卫、独享守卫、组件内守卫
+        to：进入到哪个路由去，from：从哪个路由离开，next：函数，决定是否展示你要看到的路由页面
+        next()放行 next(false)中断 next(/path)跳转
+        路由在配置的时候有属性meta 存这个路由独有的信息 方便处理这个路由(比如用to.meta.XX访问) 在构造函数里设置 和配置path一样
+        - 全局守卫 写在路由配置文件外边 所有路由配置的组件都会触发
+            全局前置守卫：初始化时执行、每次路由切换前执行
+            router.beforeEach((to,from,next)=>{}
+            全局解析守卫
+            router.beforeResolve((to, from, next) => {}
+            全局后置守卫：初始化时执行、每次路由切换后执行
+            router.afterEach((to,from)=>{}
+        - 独享守卫 写在构造函数中的路由里 单个路由配置的时候也可以设置的钩子函数
+            beforeEnter(to,from,next){}
+        - 组件内守卫 是指在组件内执行的钩子函数
+            //进入守卫：通过路由规则，进入该组件时被调用 
+            beforeRouteEnter(to, from, next) {
+            },
+            //在当前路由改变，但是该组件被复用时调用
+            beforeRouteUpdate(to, from, next) {
+            }
+            //离开守卫：通过路由规则，离开该组件时被调用,因此不会被立即调用,当组件激活时不会触发
+            beforeRouteLeave (to, from, next) {
+            }
+        - 注意:beforeRouteEnter不能获取当前组件实例this,因为在守卫执行之前，实例还没有被创建
+              beforeRouteEnter可以用next执行一个回调函数,最后执行
+              beforeResolve: 这个钩子和beforeEach类似，也是路由跳转前触发，区别是在导航被确认之前，
+                             同时在所有组件内守卫和异步路由组件被解析之后，
+
+    10.vue-router 路由钩子函数是什么 执行顺序是什么
+        路由钩子的执行流程, 钩子函数种类有:全局守卫、路由守卫、组件守卫
+        顺序看图
+
+20.vue-router 动态路由是什么 有什么问题
+    我们经常需要把某种模式匹配到的所有路由，全都映射到同个组件。
+    例如，我们有一个 User 组件，对于所有 ID 各不相同的用户，都要使用这个组件来渲染。
+    那么，我们可以在 vue-router 的路由路径中使用“动态路径参数”(dynamic segment) 来达到这个效果：
+
+    routes: [
+        // 动态路径参数 以冒号开头
+        { path: "/user/:id", component: User },
+    ],
+
+21.谈一下对 vuex 的个人理解
+    1.概念
+        vuex 是专门为 vue 提供的全局状态管理系统，用于多个组件中数据共享、数据缓存等。
+        （无法持久化、内部核心原理是通过创造一个全局实例 new Vue）
+
+    2.组成
+        Action：用于提交 mutation，而不是直接变更状态，可以包含任意异步操作。
+        Mutation：是唯一更改 store 中状态的方法，且必须是同步函数。
+        State：定义了应用状态的数据结构，可以在这里设置默认的初始状态。
+        Getter：允许组件从 Store 中获取数据加工，mapGetters 辅助函数仅仅是将 store 中的 getter 映射到局部计算属性。
+        Module：允许将单一的 Store 拆分为多个 store 且同时保存在单一的状态树中。
+
+        actions在执行前做一些判断
+        mutations执行真正的函数处理
+        如果不需要actions,在组件中就不需要dispatch 直接commit 
+
+        如果在actions中修改state 会导致开发者工具失效 它只监视mutations
+
+    3.使用方法
+        看图
+        1.组件中,.$store.dispatch('事件',传值)
+        2.action中,事件(参数,接收值){} , 
+            参数是可以访问上下文数据,有很多方法,相当于一个迷你store
+            可以在actions中继续使用dispacth,也可以用state判断当前状态
+        3.actions事件中,调用 参数.commit('事件大写',传值) 注意commit的事件要大写
+        4.mutations中: 事件(){state,接收值} state用来修改下一步的state属性
+        5.getters:从state获取数据,计算
+
+        在组件中,可以通过$store.state.XX,$store.getters.XX 来使用这些值
+
+    4.其他使用
+        需要引入import {mapState,mapGetters} from 'vuex'
+        - mapState与mapGetters 写在计算属性里
+            自动生成计算属性,get值是对应在state和getter里的值
+        	sum(){
+				return this.$store.state.sum
+			},
+            注:这是简写 完整写法是sum:function(){XXX}
+			school(){
+				return this.$store.state.school
+			},
+			subject(){
+				return this.$store.state.subject
+			}, 
+            等同于
+			...mapState({he:'sum',xuexiao:'school',xueke:'subject'}),
+            或...mapState(['sum','school','subject']),
+            简化组件提取state的名字
+            在mapState中可以直接写state属性的字符串形式,不需要this.$store.state去找,它返回一个对象
+            mapGetters用法相同
+
+            注意,模块化的vuex的mapstate写法不同
+            ...mapState({
+                'name':state=>state.user.username
+                })
+            },
+            键值对的值需要写成一个箭头函数,返回vuex中的指定值
+
+        - mapMutations与mapActions 写在methods里
+            自动生成方法,方法里会调用对应事件
+            ...mapMutations({increment:'JIA',decrement:'JIAN'}),
+            在组件中的methods中 生成increment,decrement方法,
+            方法中会调用commit去联系mutations(对象写法)直接触发mutations中的JIA和JIAN
+            注意 要在触发事件时注明参数 否则默认参数时鼠标事件
+            如@click="increment(n)"
+            当函数名和事件相同 使用数组写法
+            ...mapActions({incrementOdd:'jiaOdd',incrementWait:'jiaWait'})
+            借助mapActions生成对应的方法，方法中会调用dispatch去联系actions(对象写法),同上
+
+22.Vuex 页面刷新数据丢失怎么解决/Vuex 持久化
+    https://juejin.cn/post/6973916613506498567
+    vuex的 store 中的数据是保存在运行内存中的，当页面刷新时，页面会重新加载 vue 实例，
+    vuex 里面的数据就会被重新赋值，这样就会出现页面刷新vuex中的数据丢失的问题。 
+
+    方法一：全局监听，页面刷新的时候将 store 里 state 的值存到 sessionStorage 中，
+    然后从sessionStorage 中获取，再赋值给 store ，并移除 sessionStorage 中的数据
+
+    方法二：安装 vuex-persistedstate 插件
+
+23.Vuex 为什么要分模块并且加命名空间
+    模块:由于使用单一状态树，应用的所有状态会集中到一个比较大的对象。
+    当应用变得非常复杂时，store 对象就有可能变得相当臃肿。
+    为了解决以上问题，Vuex 允许我们将 store 分割成模块（module）。
+
+    开启命名空间后,四个map方法使用时,在前面加上模块的名字
+
+26.你都做过哪些 Vue 的性能优化
+    对象层级不要过深
+    v-if 和 v-show 区分使用场景
+    v-for 遍历必须加 key，key 最好是 id 值，且避免同时使用 v-if
+    防抖、节流运用
+    图片懒加载
+    路由懒加载
+
+27.Vue.mixin 的使用场景和原理
+    场景
+    在日常的开发中，我们经常会遇到在不同的组件中经常会需要用到一些相同或者相似的代码，这些代码的功能相对独立，
+    可以通过 Vue 的 mixin 功能抽离公共的业务逻辑,在组件中引入即可
+    原理...
+
+28.nextTick 使用场景和原理
+    nextTick 中的回调是在下次 DOM 更新循环结束之后执行的延迟回调
+
+29.keep-alive 使用场景和原理
+    keep-alive 是 Vue 内置的一个组件，可以实现组件缓存，当组件切换时不会对当前组件进行卸载。
+    可以使被包含的组件保留状态，或避免重新渲染
+    <keep-alive include="a">
+        <router-view>
+            <!-- 只有路径匹配到的视图 a 组件会被缓存！ -->
+        </router-view>
+    </keep-alive>
+
+31.Vue.extend 作用和原理
+    Vue.extend 使用基础 Vue 构造器，创建一个“子类”。
+
+32.自定义指令
+    写法 , directives是vue组件的一个配置项
+    directives:{
+        指令名:{
+            钩子函数
+        }
+    }
+
+	    bind：指令与元素成功绑定时调用。
+	    inserted：指令所在元素被插入页面时调用。
+	    update：被绑定元素所在的模板更新时调用。
+        componentUpdated：被绑定元素所在模板完成一次更新周期时调用。
+        unbind：只调用一次，指令与元素解绑时调用
+
+        每个钩子函数有四个参数,前两个是el绑定对象,binding一个对象有很多属性
+------------------------------------------------------------------------------------------------------------------------------------
+
+- 插值语法{} 指令语法V-..
+
+- Vue的属性:el data methods
+
+- data/el的两种写法
+
+- 事件修饰符：
+	在事件后面加上
+	1.prevent：阻止默认事件（常用）；
+	2.stop：阻止事件冒泡（常用）；
+	3.once：事件只触发一次（常用）；
+	4.capture：使用事件的捕获模式；
+	5.self：只有event.target是当前操作的元素时才触发事件； 即事件不是从内部元素触发的  点击子元素的按钮,不会触发父元素的click.self事件
+	6.passive：不拦截默认事件
+           通俗点说就是每次事件产生，浏览器都会去查询一下是否有preventDefault阻止该次事件的默认动作。
+           当我们加上passive就是为了告诉浏览器，不用查询了，我们没用preventDefault阻止默认动作。
+           这里一般用在滚动监听，@scoll，@touchmove 。
+           因为滚动监听过程中，移动每个像素都会产生一次事件，每次都使用内核线程查询prevent会使滑动卡顿。
+           我们通过passive将内核线程查询跳过，可以大大提升滑动的流畅度。
+- 键盘事件的修饰符
+    只有按下特定按键才会触发这个事件 例如@keyup.enter = '函数'
+    回车 => enter
+	删除 => delete (捕获“删除”和“退格”键)
+	退出 => esc
+	空格 => space
+	换行 => tab (特殊，必须配合keydown去使用)
+	上 => up
+	下 => down
+	左 => left
+	右 => right
+- 系统修饰键
+    ctrl、alt、shift、meta
+    配合keyup使用：按下修饰键的同时，再按下其他键，随后释放其他键，事件才被触发。
+    @keyup.alt.67
+    就是说你必须按完 alt后再按下c才会触发事件
+
+- 计算属性
+    get set
+    get函数什么时候执行？
+		次读取时会执行一次。(因为有缓存 页面有多个计算属性时只会调用一次)
+		当依赖的数据发生改变时会被再次调用。
+    优势：与methods(没有缓存 有多少methods就执行多少次)实现相比，内部有缓存机制（复用），效率更高，调试方便
+
+- 监视属性
+    deep,immediate,handler(newValue,oldValue){}
+
+- 绑定样式
+    5种 详见笔记
+
+- 非单文件注册
+    使用Vue.extend()生成组件,Vue.component()全局注册
+    一个重要的内置关系：VueComponent.prototype.__proto__ === Vue.prototype
+    为什么要有这个关系：让组件实例对象（vc）可以访问到 Vue原型上的属性、方法
+
+-单文件
+    main(里面有vm)-app-子组件
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+-事件相关的深入学习
+
+    事件:事件已经学习过两种
+    第一种原生DOM事件 click等
+    第二种自定义事件
+    都有事件源,事件类型,事件回调
+
+    当原生dom绑定事件.就是原生dom事件
+
+    <Event1 @click="handler1"></Event1>
+    当组件绑定原生DOM事件，并非原生DOM事件，而是所谓的自定义事件。
+    如果你想把自定义事件变为原生DOM事件，需要加上修饰符.native修饰
+    这个修饰符，可以把自定义事件【名字：原生DOM类型的】变为原生DOM事件，
+    当给组件标签写click.native,会给组件的根节点绑定click事件(即原生dom事件)
+    这样组件里的所有结构都会因为事件委派触发click事件
+
+-$ref 
+    获取子组件 id的替代者
+    应用在html标签上获取的是真实DOM元素，应用在组件标签上是组件实例对象
+
+- props 
+    接收到的props无法更改 想要修改 在data里用另外一个变量接收 然后修改这个变量
+    接收的同时可以对数据：进行类型限制+默认值的指定+必要性的限制
+
+- 使用插件
+    Vue.use(插件名字,参数1,参数2,参数3)
+
+- 自定义事件(子传父)
+	通过父组件给子组件绑定一个自定义事件实现：子给父传递数据
+	在父组件中写 <Student @atguigu="getStudentName"/>
+    这个自定义事件会触发父组件的回调函数
+
+    另外一种,通过父组件使用$on给子组件绑定自定义事件,并指定回调函数
+    this.$refs.student.$on('atguigu',this.getStudentName)
+
+    子组件使用.$emit('事件',参数)触发自定义事件,并传参
+    子组件.$off('atguigu')解绑
+
+- 全局总线(任意组件传值)
+    在定义vue时
+    beforeCreate() {
+		Vue.prototype.$bus = this //安装全局事件总线 $bus就是当前应用的vm
+        所以组件都可以顺着原型链访问到vm,并使用它的$emit,$on
+	},
+
+    A组件想接收数据，则在A组件中给$bus绑定自定义事件，事件的回调留在A组件自身
+    在B组件中触发$bus的自定义事件,则A的回调会执行,且可以传参
+
+- 消息订阅与发布
+    订阅:pubsub.subscribe('事件',回调)
+    发布:pubsub.publish('事件',参数)
+
+- nextTick
+    this.$nextTick(回调)
+    作用：在下一次 DOM 更新结束后执行其指定的回调。
+    什么时候用：当改变数据后，要基于更新后的新DOM进行某些操作时，要在nextTick所指定的回调函数中执行。
+    例如,点击修改,p标签转化为input,然后要 组件.dom.fcous() 让input聚焦
+
+- vue脚手架配置代理/跨域
+
+- 插槽
+    默认插槽
+    具名插槽
+    父传子
+
+    作用域插槽
+    数据在组件的自身，但根据数据生成的结构需要组件的使用者来决定。
+    scope接收参数
+
+- 获取表单输入的数据有三种方法
+    利用Vue模板语法中的指令语法v-model  可以双向数据绑定 可以存储备份到data
+    利用事件的event事件对象进行找到绑定时间的dom元素对象，进行操作
+    利用Vue的元素标签ref属性可以找到  这个ref属性存在的dom元素对象
+

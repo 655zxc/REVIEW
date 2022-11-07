@@ -1,0 +1,157 @@
+    1.TypeNav组件
+        这是一个全局组件,注册方法,在main中Vue.component(TypeNav.name,TypeNav)
+        后续可以直接使用,而不需要import
+
+        1.1.获取数据:
+            TypeNav中的数据是从服务器得来的,而不是本地
+            因此需要访问服务器得到数据,放到vuex里,然后通过vfor遍历生成
+
+            组件挂载完毕,在钩子函数中触发vuex,在vuex的home模块中使用api(index中有统一管理的函数)发送请求,将数据存储于vuex的state 
+            注:在函数参数里写{}是解构赋值
+            然后在计算属性里把categoryList赋给TypeNav
+            categoryList是一个数组 是一个三级菜单 从服务器得来
+            在typenav的html中v-for它 生成html菜单
+
+        1.2.关于变色
+            鼠标移入事件,导致currentIndex数值改变,样式绑定改变:class = "{cur:index==currentIndex}
+
+        1.3.隐藏和显示
+            :style = "{display:index==currentIndex?'block':'none'}"同上
+            修改display的block none来显示
+
+        1.4.节流
+            鼠标快速划过一级菜单,导致切换频繁,需要节流
+            通过给鼠标移入事件绑定节流函数实现,节流函数中开启定时器调用回调函数,并设置时间
+
+        *1.5.关于三级菜单的路由跳转
+            点击实现路由跳转,
+            如果使用声明式导航router-link:
+            由于router-link是一个组件
+            服务器返回数据时会创建大量组件
+            导致卡顿
+            如果使用编程式导航:
+            给每个a标签绑定click事件
+            太多了 上千个回调
+
+            因此
+            采用事件委派+编程式导航:
+            事件委派:给所有a标签的父元素加上click事件(点击冒泡到a标签)
+
+            存在问题:
+            父元素有很多子元素,如何判断点击的是a标签?
+                给a加上自定义属性data-categoryname值是名字,
+                e.target.dataset 可以获取目标的属性,
+                e.target如果有e.target.dataset.data-categoryname就是a标签
+            如何获取参数,传递给search,如点击产品的名字?
+                在vfor循环的时候
+                给a加上自定义属性data-categoryid1~3
+                可以通过e.target.dataset.data-categoryid1~3
+                分辨是第几级的菜单
+
+            收集到点击项的e.target.dataset.data-categoryid1~3,把他作为query参数,使用编程式导航this.$router.push()传递
+            注意,如果存在this.$route.params(搜索栏params参数),也要一起传
+
+        1.6.优化
+            我们之前把this.$store.dispatch("categoryList")写在typenav的mounted中
+            typenav在home和search都被使用了
+            在home,search之间切换时
+            由于组件切换会被销毁
+            每切换一次加载一次
+            这句代码就执行一次
+            就会发送ajax请求 过于频繁 需要优化
+            写在app的mounted中 由于app只会加载一次
+            this.$store.dispatch("categoryList")
+            也只会执行一次 发送一次请求
+
+    2.二次封装axios
+        发送ajax请求,有xhr,fetch,axios
+        为什么要二次封装?为了写拦截器,在请求前,数据返回后做一些处理
+       
+        写法:
+        创建axios实例,配置基本路径,写请求响应拦截器,暴露
+
+    3.API接口统一管理
+        在这里写接口,使用封装好的axios实例,分别暴露
+        写法:暴露一个变量 值是箭头函数返回的一个,封装的axios请求调用
+            export const 名字 = ()=>{
+                //这里用的是分别暴露
+                //对外暴露一个函数 这个函数return一个promise(axios都返回promise)
+                return requests(
+                    //requests是从request引入的二次封装好的axios实例 可以发请求
+                    {
+                        url:'/product/getBaseCategoryList',//由于requests在封装的时候设置了baseURL:'/api',因此地址只用写后半段
+                        method:'get'
+                    }
+                )
+            }
+
+    4.mock
+            对于home的ListContainer
+            服务器没有返回这两个组件的数据
+            这里使用mock模拟数据,伪造成服务器返回的数据,模拟json后端数据
+            使用步骤
+            创建mock文件夹
+            准备json数据 banner.json存放着轮播图需要的数组数据,注意:json的数据需要格式化一下 别留空格
+            将文件放到public文件夹中(原因看19)
+
+            问题:json文件没有暴露 但为什么可以直接引用?
+            在webpack中 图片 json默认暴露
+
+            在api中创建一个新的axios实例用于访问这个mock模拟数据
+            基本路径不是/api,改成/mock
+
+
+    4.跨域(额外写)
+        使用代理服务器解决,在vue.config里
+        devServer: {
+            proxy: {
+            '/api': {
+                target: 'http://39.98.123.211',
+                
+            },
+            }
+        }
+        路径出现api 会通过代理服务器访问真实服务器
+
+    5.public和assets下存放图片的区别：
+        相同点：都是存放静态资源
+        不同点：
+        public：图片不会被webpack打包编译，直接复制到最终的打包目录下面
+        assets：在js中使用的话，路径要经过webpack中的file-loader编译
+        https://blog.csdn.net/weixin_52388167/article/details/116013377
+        若把图片放在assets和public中，html页面都可以使用，但是在动态绑定中
+        assets路径的图片会加载失败（因为webpack使用的是commonJS规范，必须使用require才可以。
+
+    6.分页器
+        这是一个全局组件
+        pageNo 当前页数
+        pageSize 一页展示多少条数据
+        total 总共数据有多少条
+        continues 连续页码数
+        这些参数由父亲使用<Pagination/>的时候传递
+
+        组成结构
+        上一页 1 ... 连续页 ... 31 下一页 共有7个重要的东西
+
+        计算连续页的start和end
+        根据pageNo和continues计算
+        如果超出范围特殊计算
+        vfor遍历生成连续页 v-if隐藏不需要的页
+        v-for的优先级会高于v-if，因此v-if会重复运行在每个v-for中。
+        正确写法：使用template标签进行包裹
+
+        判断要不要1 ... 31
+        start>1 就要1 否则不要(因为start<=1的时候 连续页中就包含1)
+        start>2 就要... 否则不要(因为这时start=3 和1连不起来)
+        通过vif实现
+
+        点击页数时,会触发自定义事件,传参
+
+        如何改变页数?
+        分页器里已经写了$emit事件,只需要在使用分页器的父组件中写好相应的$on以及回调函数即可
+        一般在mounted里$on绑定
+        
+    7.接口绑定
+        接口引入很麻烦,我想在任何组件都能使用所有接口怎么办
+        在main.js里import * as API from '@/api' 引入所有接口
+        在vue的beforecreated里Vue.prototype.$API = API 绑定接口到原型上

@@ -1,0 +1,25 @@
+1.
+function Foo() {
+    var i = 0;
+    return function() {
+        console.log(i++);
+    }
+}
+var f1 = Foo(),
+var f2 = Foo();
+f1();
+f1();
+f2();
+
+0 1 0
+作用域链里变量对象双方都是独立的 的缘故，所以 f1 里对i的改变 影响不到f2 里的i
+
+2.元素的alt和title属性有什么异同，选出正确的说法？
+alt和title同时设置的时候，title作为图片的替代文字出现，alt是图片的解释文字
+
+3.下面有关HTML的Doctype和严格模式与混杂模式的描述，错误的是？
+DOCTYPE不存在或格式不正确会导致文档以标准模式呈现
+
+4.浏览器内核
+
+5.

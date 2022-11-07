@@ -1,0 +1,505 @@
+1.header
+    该部分共有一个组件
+    以下是功能
+    1.1.超链接功能
+        这部分的路由跳转通过router-link实现
+    1.2.搜索栏功能
+        这部分的路由跳转通过this.$router.push({})实现
+        参数由vmodel获得
+
+        问题:设置params后,可以不传参数吗?
+        路由里规定了 /:xx 就需要传 否则路径会出现问题
+        设置成 /:xx? 就可以任意传或者不传了
+
+        问题:params传了空串怎么办
+        会出现路径问题
+        使用undefined解决,parmas{key:''||undefined,}
+
+        问题:如果在使用搜索栏的时候,已经选了菜单,怎么在跳转的时候,同时保留菜单选项
+        跳转前判断当前路由有无this.$route.query,有就在this.$router.push({})里加上这条参数
+
+        问题:编程式导航重复点击出现NavigationDuplicated问题
+        因为编程式导航跳转方法,比如push()会return一个promise
+        push().then(()=>{},()=>{})添加回调解决
+
+
+2.footer
+    2.1.在中间出现某些路由时,footer不需要显示
+        通过<Footer v-show = "$route.meta.showFooter"/>根据路由的meta配合v-show实现
+    2.2.
+
+3.home
+    该页面有多个子组件,三级菜单,主要内容,以及静态的推荐,品牌...
+    3.1.路由配置
+        特别注意,除了配置home的路由,还要配置一个/的路由用于重定向
+            {
+                // 重定向
+                path: '/',
+                redirect: '/home'
+            },
+
+    3.2.开发子组件:主要内容ListContainer
+        3.2.1.获取数据
+            在ListContainer的mounted中发送axios请求mock数据
+            并且将数据存储于vuex的home仓库(经典四步)
+        3.2.2.轮播图
+            使用swiper 方法看官网
+            mounted里触发vuex的axios获取轮播图的数据
+            轮播图再使用这个数据生成
+
+            问题:轮播图根据vuex数据生成结构的js代码放在哪?
+            mounted不行 为什么?
+            但是数据是axios请求出来的,来的太晚了
+            我们需要把js代码延迟,延迟到轮播图数据来了之后再执行
+
+            解决方法:
+            (1)js放在mounted里,设置定时器让js代码延迟一点,不好
+            (2)js放在update里,更新的时候执行js代码,不好
+            (3)使用watch监听bannerList数据(一开始由空数组变成有数据的数组),发生变化则执行js
+            不行,数组有了,但是结构还没有渲染完毕(因为v-for也需要时间)
+
+            *最好的方案:
+            (4)watch + $nextTick,在watch发现bannerList变化后(即轮播图数据请求得到了),js代码在dom更新后执行
+
+            总结轮播图使用:引包,写html结构,
+        
+4.search 
+    依旧是套路:
+    静态页面,拆组件
+    写axios请求(发送axios在vuex里)
+    vuex四步(dispatch在组件mounted里)
+    组件获取state数据(在组件computed里)
+    v-for循环数据生成html
+
+    4.0.关于data
+        要请求数据,就必须整理好data
+        categoryXId categoryName是菜单的
+        keyword是搜索栏的
+        trade是品牌选择的
+        prop[]是售卖属性选择的
+
+    4.1.关于接口参数
+        再dispatch的时候传过去,然后再action中使用接口
+        使用接口时,要保证至少有一个空参,那么可以设置action中的方法的形参为默认参数
+        async getSearchList(store,params={}) {发送axios请求...}
+
+    4.2.关于getter
+        state.searchList.goodsList如果服务器数据回来了，没问题是一个数组
+        有时候网不好,想要在vuex中访问的那条数据,服务器还没发送回来
+        这个时候访问数据会出错
+        假如网络不给力/没有网state.searchList.goodsList应该返回的是undefined
+        return state.searchList.goodsList||[]
+
+    4.3.关于获取数据
+        我想实现的功能:
+        我通过菜单进入search页面,再通过搜索栏搜索,两次选择的参数都会保留,且会返回加起来的数据
+        解决办法:
+        通过监听参数(其实就是监听$route)是否变化实现,变化则发请求,注意发请求前整理接口参数
+
+        当从菜单或搜索栏跳转到search
+        search在mounted中使用this.$store.dispatch('getSearchList',{参数})
+        让vuex发送axios请求
+        但是传参变化一次 search就需要调用this.$store.dispatch('getSearchList',{参数})
+        放在mounted中只会执行一次
+        因此dispatch不可以放在mounted中
+
+        那么,如何实现点击菜单,搜索栏就会发送axios请求?(dispatch不能写在mounted里)
+        监听路由是否变化
+        $route是一个和searchList平级的数据,在开发者工具里观察,这点很重要
+        watch:{
+            $route:{
+            immediate:true,
+            handler(){
+                this.getData()
+            }
+            }
+        }
+
+        总结,通过watch观察路由是否变化(其实就是参数变化),执行获取数据函数
+
+        注意getdata这个函数里,需要整理api参数
+        使用Object.assign(this.searchParams, this.$route.query, this.$route.params);
+        合并旧的参数,和新的参数
+
+    4.4.search的子组件
+        这个组件是用来选择商品的属性的,通过全局总线向父组件search传参(选择的属性)
+        如果点击品牌,传参并触发父组件的回调函数,父组件修改data数据的品牌,并重新发送请求
+        如果点击其他的属性,传参并触发父组件的回调函数,父组件修改data数据的prop数组
+        (其他属性可以选很多,不是只有一个,因此用数组存放),并重新发送请求
+
+    4.5.面包屑
+        共有四种面包屑,他们都通过检查data有没有某项数据而生成
+        categoryXId categoryName是菜单的
+        keyword是搜索栏的
+        trade是品牌选择的
+        prop[]是售卖属性选择的
+
+        4.5.1.菜单栏生成的面包屑
+            通过 v-if = categoryXId 来显示
+            删除时,清除categoryXId categoryName再次发送axios请求
+            注意,这个时候url会仍然有query参数,需要清除,方法是重新跳转到search,即自己跳自己
+            if (this.$route.params) {
+                this.$router.push({ name: "Search", params: this.$route.params });
+            }
+        4.5.2.搜索栏生成的面包屑
+            通过 v-if = keyword 来显示
+            删除时,清除keyword(keyword=undefined),再次发送axios请求
+            注意,这个时候url会仍然有params参数,同上
+        4.5.3.点击品牌生成的面包屑
+            通过 v-if = trade 来显示
+            删除时,将删除的参数设置为"",再重新发送axios请求
+        4.5.4.售卖属性生成的面包屑
+            通过vfor遍历prop[]生成
+            删除时,删除数组中某项,再传参
+        4.5.5.这里有点优化
+            比如在4.5.1中,categoryXId categoryName不需要了,就把它设置为undefined,就不会传给服务器了,减轻压力
+
+    4.6.排序
+        修改data参数,让后端处理
+        主要是这个按钮的样式问题
+        :class="{active:searchParams.order.indexOf('1')!=-1}"
+        根据判断data里面有没有某个数据,有,class的样式就是active
+
+5.details
+    在search中点击商品跳转至商品的详细页面,通过router-link实现
+    并且传递商品id作为路由的params参数,写在to里面
+    detail接收到参数写到data里面,然后请求数据
+
+    5.1.滚动
+        使用前端路由,当切换到新路由时,会出现页面不是在最顶部的情况,想要页面滚到顶部
+        在new router里配置
+            scrollBehavior(to, from, savedPosition) {
+                // 始终滚动到顶部
+                return { y: 0 }
+            },
+
+    5.2.放大镜
+        小图列表是子组件imagelist,是一个轮播图
+        放大镜是子组件zoom,展示轮播图当前图片
+
+        通过props传递给子组件要展示的图片
+        点击imagelist中的图片,会通过全局事件总线,告诉兄弟组件zoom是哪张图片(传递图片id)
+        当鼠标移入zoom组件时,会触发放大函数,展示小框和大框(鼠标未移入时,默认display:none)
+        小框计算移动范围,大框同理,大框展示一张放大的背景图片
+
+    5.3.加入购物车
+        处理表单:
+            数量可以通过input输入,也可以通过+,-按钮改变
+            当input里出现非法数据,失去焦点,需要对数据做处理
+                    let salenum = e.target.value * 1 //让字符串变成NaN
+                    if(isNaN(salenum) || salenum<1){//如果是NaN 或者是负数
+                    this.num = 1
+                    }
+                    else {
+                    this.num = parseInt(salenum)//处理小数
+                    }
+        *加入购物车功能:
+            给加入购物车绑定click事件
+            发送dispatch请求(发送购买产品信息),服务器不会返回data数据,只会告诉你存储成功,因此vuex不需要存state
+            dispatch会调通actions里的shoppingCart函数,他是一个async函数,可以接收它的返回值promise
+            如果promise成功,进行路由跳转
+            如果promise失败,打印失败信息
+            因此加入购物车这个方法也要写成async
+            内部通过try catch实现
+                async addShoppingCart(){
+                    try{
+                        let result = await this.$store.dispatch('shoppingCart',{id:this.$route.params.id,num:this.num})
+                        //await会接收promise 如果状态成功 则把成功值赋给result
+
+
+                        //会话存储 在AddCartSuccess中取出来
+                        sessionStorage.setItem("saleinfo",JSON.stringify(this.detailsList.skuInfo))
+
+
+                        //然后进行路由跳转
+                        this.$router.push(
+                        {
+                            name:'AddCartSuccess',
+                            query:{
+                            num:this.num
+                            }
+                        }
+                        )
+                    }
+                    catch(err){
+                        alert(err.message)
+                        //如果await等到一个失败的promise 则需要try catch
+                        //err的值是promise的失败值
+                    }
+                }
+
+            和前面有点不一样,前面不需要判断,直接路由跳转,然后向服务器传递参数,然后展示
+            这里是先向服务器传递参数,判断成功与否,成功再路由跳转
+
+            路由跳转后,页面要展示刚才选的商品的信息,需要路由传参 
+            但是,这个地方传商品信息,要传的数据太多了,之前的路由传参都是些简单的数据
+            那么如何不用路由传参,也能在将要跳转的路由中获得参数?
+
+            这种复杂的参数,采用会话(浏览器关了就没了)存储
+            本地存储和会话存储只能存字符串
+
+            关于dispatch的参数:
+            不能传递多个参数,应该把多个参数放到一个对象里传递,在actions的函数中通过解构赋值获取
+
+6.AddCartSuccess
+    本模块有两个功能
+    查看商品详情:
+        点击,回到刚才的商品页面,因此需要路由跳转,通过router-link,参数为刚才商品的id
+    去购物车结算:
+        路由跳转至购物车组件,通过router-link,无参数
+
+    以及如何得到加入的商品的信息?
+        计算属性,JSON.parse(sessionStorage.getItem("saleinfo")),取出刚才保存的商品数据
+        然后在html展示
+
+7.*ShopCart
+    经典几步请求展示数据
+    7.1.游客的uuid
+        加入购物车,展示购物车,都需要注明这个人是谁
+        但不直接把id写在接口参数里,而是使用uuid
+
+        写一个函数,每次使用都生成唯一不变的uuid
+        方法是,查看本地存储有无UUID,有就不生成,没有就生成UUID并存在本地,放在utils工具类文件夹
+        因此,使用这个函数时,如果不清除缓存,永远只会返回一个id
+        然后在details的仓库引入并调用这个函数,在details的state生成一个uuid值
+        每次刷新,会发现$store.details.state.uuid都是不变的\
+        (vuex的数据是否改变,和你加没加载某个组件无关,只和你是否调用dispatch有关,
+        因此没加载details的时候,就没调用dispatch,因此$store.details.state.XX都没有数据
+        而这个$store.details.state.uuid是调了个函数,一开始就有数据)
+        猜测:这个uuid放在任何一个地方都可以吧?不放在$store.details也行?
+        
+        添加购物车,获取购物车需要一个身份uuid,需要传一个参数到服务器,但是不能在axios参数里传,怎么办
+        在请求拦截器中,如果details的state存在uuid,if(store.state.details.uuid)
+        则设置config的请求头带参 参数为uuid
+
+    7.2.全选按钮
+        其中 是否全选 这个功能
+        一开始我想 获得所有元素节点
+        但是这是在vue里面 节点都是响应式的
+        就是说 每个单选框的value都绑定了一个isChecked
+        那么只需要关心数据就可以了 不用去获得节点
+        改变数据 节点自然会改变
+
+        (1)
+        全选按钮
+        没有全选按钮的接口,因此只能多次调用单选按钮的接口 
+        传递e过来,通过e.target.checked判断是全选还是全部取消,然后作为参数
+        this.$store.dispatch('allSelected',e.target.checked)
+        在vuex的action里,遍历state里的单选按钮数组,调用dispatch触发axios请求,让服务器改变他们的状态
+        (2)
+        绑定单选按钮事件 @click = "oneSelected(p,$event)"
+        p是遍历时数组的数据,p.id可以当作发送axios请求时的参数
+        e是目标,可以通过e.isChecked判断点击目标的状态
+        点击 发送axios 告诉要改变的id和状态 让服务器修改数据
+        再获取购物车信息
+        (3)
+        单选按钮改变全选按钮状态
+        写一个计算属性
+        若单选按钮全为1则它为1 否则为0
+        让全选按钮的checked绑定这个计算属性
+
+    7.3.商品数量的改变
+        和之前details里的一样
+        这里可以使用节流
+    
+        问题:为什么点击+ 数量没更新?
+        点击+,调用this.$store.dispatch('shoppingCart',{id:,num:})向服务器发送请求
+        服务器修改参数(注意!!!!!!这个axios请求是不返回数据的!!!!!!!!最重要的一句话!!!!!!!!)
+        请求数据是this.$store.dispatch("getShopCart"),在mounted写的
+        请求服务器数据只执行一次 因此页面数据不会改变
+        所以 当触发修改商品数量函数后
+        再发一次 this.$store.dispatch("getShopCart")获取数据
+        只有改变组件自身带的数据 页面才会立即改变
+        !组件的数据也是经过vuex发送axios得到服务器的数据 然后绑定到组件上的
+        因此不发送dispatch获取数据 组件的数据就不会和服务器同步
+
+    7.4.删除购物车商品
+        发送数据到接口,这个接口没有返回信息
+        写axios
+        vuex
+        重新获取购物车信息
+            
+    7.5.优化商品数量的改变
+        问题:点击-过快 导致数量变为负数
+        需要节流
+
+    7.6.删除选中商品
+        同7.2(1)
+        我们没有一次性删除很多商品的接口
+        只有删单个商品的接口
+        需要我们自己造
+        删除选中商品这个回调函数没办法收集到有用的数据比如id
+
+        写删除选中商品的vuex
+        在actions中,可以通过访问store的getters来访问数组,这个数组存着商品的状态
+        获取数组中ischecked为1的项
+        在删除选中商品的actions中调用删除单个商品的dispatch
+
+        然后处理每次删除单个商品产生的promise
+        返回promise.all(所有的单个promise)
+        在组件的回调函数接收返回结果
+        判断成功与否
+
+        注意:在actions改state或者getters数据
+        没用 只是改本地的 重新向服务器请求更新就没了
+        必须用dispatch改服务器的数据
+
+8.register
+    收集表单参数(手机号,密码)
+    获取验证码点击事件,发api让后台去做,参数为手机号
+    注册点击事件,写axios,收集参数,发送dispatch,vuex,做async await处理,trycatch,await成功则路由跳转至login
+    表单验证,使用vee-validate
+
+9.login
+    9.1.登录并获取token
+        收集登录名密码参数,调用dispatch,在vuex的action中发送api
+        服务器返回一个token,在vuex的action中设置本地缓存的token,
+        并存储在state.token中,结束(注意,token有初始值,即本地缓存,token:localStorage.getItem('TOKEN'))
+
+    9.2.设置token
+        将token设置在封装的实例axios的请求拦截器中
+        if(store.state.user.token){
+            config.headers.token = store.state.user.token;
+        }//给请求头添加token
+        这样,只要本地存在token,那么每次发请求都会携带token
+    
+    9.3.获取用户登录信息
+        在home的mounted里调用dispatch获取用户信息
+        和id一样,这个请求没有参数,但是要把token放在请求头
+        不然服务器不认识这是谁
+        通过在请求拦截器里面写完成
+        不然这个接口拿不到信息
+        然后进行vuex四步 存储用户信息
+
+    9.4.header组件左上角展示用户信息
+        使用v if隐藏,通过判断userinfo有没有name
+        然后v else展示用户名
+
+    9.5.token的持久化:本地存储
+        登陆后 一刷新登录就没了 因为vuex不是持久化的 store.state.user.token没了
+        而请求拦截器是根据store.state.user.token是否存在而配置,导致登录失效
+        目的:让store.state.user.token刷新也不会消失
+
+        想要持久化存储token
+        在vuex的user的actions的登录(因为登录获取token)方法中
+        把token存于本地localStorage
+        并在mutation修改store.state.user.token的值,此时会修改掉token的默认值(默认值是之前的本地存储的token)
+
+        每次刷新vuex的state的token都会变为空串
+        因此把vuex的state的token默认值设置为本地存储的token
+        没有就是空串(比如第一次 未登录的时候) 会被之后登录得到的token覆盖
+        有(登录之后) 就是本地存储token的值
+
+    9.6.问题:
+        (1)切换到search刷新 登录信息又没了?为什么?
+            因为刷新 vuex中的用户信息没了
+            (注意,切换到search,vuex数据不会消失,虽然我们把vuex模块化了,但实际上还是所有组件公用一个状态库,而刷新会导致整个vuex重置)
+            本地虽然有token,但是只有home的mounted才写了请求userInfo,才得到了用户信息
+            不管在哪个组件,只要调用了这个请求就能获得用户信息,才能使用本地token获取用户信息并存于vuex
+            因此home刷新还有登录信息,因为它调请求了
+            因此在search页面刷新,导致vuex重置,但是又没有请求userinfo,vuex也就没有用户信息(被刷新了)
+        (2)用户登录后就不应该能回到login页面了,怎么做?
+
+        问题1和问题2的共同解决:(详见router > index.js)
+        设置全局路由守卫beforeEach
+        根据store.state.user.token判断有没有登陆过,根据store.state.user.userInfo.name判断有没有用户信息
+            1.如果登录了且to.path是login/register 则next(/home) 调至主页
+            2.如果登录了但去的不是login,且有用户信息,放行
+            3.如果登录了但去的不是login,没有用户信息了(刷新消失掉了或者未获取,但是用户登陆过,还有本地token能用),重新发送获取用户信息
+                使用try catch获取用户信息
+                3.1如果获取成功,就是重新得到用户信息,放行(try await发送api)
+                3.2如果获取失败(catch)(登陆过,用户信息刷新丢了,本地token也失效了),需要登出,调用退出登录的dispatch,跳转到login重新登陆
+                    (这个时候也可以不选择登录,变成游客状态,因为调用了退出登录,token已经被清除了)
+            4.如果没有登录,见14
+
+        把获取用户信息请求userInfo写在(3)中,解决了问题1
+        比如,用户第一次登录,得到token,自动跳转到home,符合(3.1),因此获取用户信息
+        然后,用户跳转到search,符合(2)
+        然后,用户刷新,丢了vuex里的数据,只有本地存储的token,符合(3.1),因此获取用户信息
+
+    9.7.退出登录
+        写axios
+        写vuex(清除数据在mutation中做,清除state.XX以及清除本地缓存localStorage.removeItem("TOKEN"))
+
+10.trade 
+    shopcart中点击按钮跳转至trade,无参数,通过token获取
+    该页面主要是收集用户信息
+
+    10.1.该页面要展示的内容
+        用户信息,订单信息,通过mounted调用dispatch发送api,无参数(因为有token),然后从vuex取出
+    10.2.该页面收集的参数
+        其中有一项是,在用户已有的地址中选择一项,使用排他算法
+        一个优化,地址可以通过计算属性组合得到
+    10.3.提交订单
+        收集数据,发api,服务器返回订单号,路由跳转至支付页面,参数为订单号
+
+11.pay
+    根据trade模块路由跳转传来的订单号orderId,作为参数访问接口,得到信息
+
+    11.1.点击按钮弹出二维码支付框
+        触发点击事件,执行以下内容
+        使用qrcode请求生成二维码图片 参数是刚才通过orderId得到的信息codeurl
+        返回一个promise 成功值是图片地址
+
+        开启定时器,用定时器每隔一段时间1s,使用查询订单状态的接口,接口会返回promise
+        若成功则清除定时器,保存code(如果成功,code应该是200),路由跳转到支付成功页面
+        若不成功,什么都不干,过1s后定时器又会触发函数访问接口,返回promise
+
+        弹出一个element框
+        内容是一张二维码图,和支付成功按钮和支付失败按钮
+        点击成功按钮,检查code是否为200,是则清除定时器,路由跳转到支付成功页面
+        点击失败按钮,清除定时器
+
+12.paysuccess
+    提供按钮,路由路由跳转至center,无参数
+
+13.center   
+    13.1.二级路由重定向
+        进入center之后,展示的是center的index.vue页面,此时二级路由部分为空,因为center的index.vue没写这部分
+        因此需要二级路由重定向
+                        {
+                        //center路由的重定向
+                        path: '/center',
+                        redirect: 'myorder'
+                        },
+        访问center,重定向至myorder,二级路由部分默认加载myorder的路由组件
+        注意,二级路由的path没有斜杠也没有前缀
+    13.2.myorder
+        展示数据不再叙述,使用分页器时注意写$on以及回调,prop传数据
+    13.3.生成表格
+        如何让一个结构 在vfor里只生成一次?
+        使用vshow,如果index==0显示,否则不显示
+
+14.接9.6
+    问题3:未登录时,有些页面不能访问
+
+    实现需求:
+    未登录时,访问trade,pay,center->跳转login->跳转到trade,pay,center
+    访问其他页面放行
+    采用全局守卫beforeEach
+
+    怎么判断地址?
+    路径.indexOf(地址) != -1 , 即包含这个地址 , 跳转到login
+    其余情况,代表未登录访问可以访问的页面,放行 
+
+    怎么存想访问的页面,让登陆后自动跳转?
+    路由push跳转login时,携带query参数用于跳转
+    因此要修改login组件,之前写的是登录后默认跳login
+    现在要变成有参数跳参数,没有则跳home
+
+    问题4:登录了,也不可以直接跳到trade,pay,paysuccess
+
+    实现需求:
+    登录了,也不可以直接跳到trade,而是只能从购物车路由过来
+    想跳到pay,只能从trade来
+
+    怎么实现?
+    (1)trade,采用独享守卫,因为只用管trade一个路由(全局是所有路由切换都要执行一遍)
+    来的是shopcart(from.path == "/shopcart")才放行(next()),否则停留在当前页面,使用next(false),重置到from的路由的地址
+    (2)pay同理
+    (3)pausuccess可以同理,但这里我们换一种方法,采用组件内守卫
+    原理同上
+    注意,beforeRouterEnter里面拿不到组件的this,因为组件还未被创建
+
+
+项目中出现的,节流,事件委托,图片懒加载,promise.all

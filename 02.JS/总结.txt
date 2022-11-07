@@ -1,0 +1,672 @@
+2022.2.24
+
+1.数据类型
+    1.1 基本的数据类型介绍，及值类型和引用类型的理解
+        8种类型 USONB+SB
+        number，boolean，string，null和undefined都属于值类型，而函数和对象属于引用类型。
+        除了这八种,还有函数和数组,它们是对象
+        值类型是直接存储在**栈（stack）**中的简单数据段
+        引用类型存储在**堆（heap）**中的对象，占据空间大、大小不固定。如果存储在栈中，将会影响程序运行的性能；
+    1.2 数据类型的判断
+        - typeof A 返回类型
+            能判断所有值类型，函数。不可对 null、对象、数组进行精确判断，因为都返回 object 
+        - A instanceof B 返回布尔值
+            能判断对象类型，不能判断基本数据类型
+            其内部运行机制是判断在其原型链中能否找到该类型的原型
+            如果能找到对应的 B.prototype  即为 true
+        - Object.prototype.toString.call(A)
+            所有原始数据类型都是能判断的，还有 Error 对象，Date 对象等。
+            Object.prototype.toString会返回一个形如 "[object XXX]" 的字符串。如果对象的 toString() 方法未被重写，就会返回如上面形式的字符串。
+            但是，大多数对象，toString() 方法都是重写了的(A.toString)，这时，需要用 call()(Object.prototype.toString.call(A))
+        - 如何判断变量是否为数组？
+            上面的两种方法
+            API Array.isArray()
+            原型对象 
+    1.3 手写深拷贝
+        详见https://www.bilibili.com/video/av204863779?from=search&seid=6448361990924897511&spm_id_from=333.337.0.0
+        - 深浅拷贝概念
+            浅拷贝:如果属性是引用类型，拷贝的就是内存地址 ，所以如果其中一个对象改变了这个地址，就会影响到另一个对象。
+            深拷贝:将一个对象从内存中完整的拷贝一份出来,从堆内存中开辟一个新的区域存放新对象,且修改新对象不会影响原对象
+        - 手写
+            写一个函数clone(obj)
+            使用typeof和直接判断 如果不是对象或null 直接return传进来的东西 [递归出口]
+            否则进行深拷贝
+            使用instanceof判断 是对象还是数组
+            新建new = [] 或 {}
+            for (let key in old) 循环old
+            在forin
+            里面进行递归 
+            new[key] = clone(old[key])
+            然后return经过遍历组装好的new,这个new是对象
+
+            如果传入的是基本数据,clone返回一个基本数据
+            传入对象,clone返回一个对象
+
+            优化:在赋值前,判断old.hasownproperty,hasOwnProperty() 方法会返回一个布尔值，指示对象自身属性中是否具有指定的属性
+
+            循环引用:如果存在old.old,则会死循环
+
+    1.4 根据 0.1+0.2 ! == 0.3，讲讲 IEEE 754 ，如何让其相等？
+        - 为什么
+            位数有限,二进制无限小数精度丢失,
+        -解决办法
+            转为整数（大数）运算
+            使用 Number.EPSILON 误差范围,Math.abs(a - b) < Number.EPSILON
+            转成字符串，对字符串做加法运算
+                具体实现也不复杂，我们定义两个指针 ii 和 jj 分别指向NUM1 NUM2 的末尾，
+                即最低位，同时定义一个变量add 维护当前是否有进位，然后从末尾到开头逐位相加即可。
+                你可能会想两个数字位数不同怎么处理，这里我们统一在指针当前下标处于负数的时候返回0，
+
+
+2.原型和原型链
+    - 解释
+        每一个构造函数的内部都有一个 prototype 属性， 它的属性值是一个对象，这个对象包含了可以由该构造函数的所有实例共享的属性和方法。
+        当使用构造函数新建一个对象后，在这个对象的内部将包含一个指针，这个指针指向构造函数的 prototype 属性对应的值，
+
+        当访问一个对象的属性时，如果这个对象内部不存在这个属性，那么它就会去它的原型对象里找这个属性，
+        这个原型对象又会有自己的原型，于是就这样一直找下去，也就是原型链的概念。
+    - 看ppt 8-15页 了解原型链
+        一般情况下,我们的公共属性定义到构造函数里面, 公共的方法我们放到原型对象身上
+        如果我们修改了原来的原型对象,给原型对象赋值的是一个对象(而不是添加,是直接覆盖),则必须手动的利用constructor指回原来的构造函数
+        this指向:构造函数中,里面this指向的是对象实例 ldh,原型对象函数里面的this 指向的是(函数调用者I) 实例对象 ldh
+    - 如何获得对象非原型链上的属性?
+        for(var key in obj)
+        使用后hasOwnProperty()方法来判断属性是否属于原型链的属性
+    - 继承
+        详见第二天.11/12
+        继承构造函数:在子构造函数中使用Father.call(this, 继承属性1, 继承属性2),调用父构造函数,并改变父构造函数的this指向
+        继承原型:Son.prototype = new Father() Son.prototype.constructor = Son
+                Son.prototype = Father.prototype; 
+                这样直接赋值会有问题,如果修改了子原型对象,父原型对象也会跟着一起变化
+                这样会导致 father son的原型对象指向同一地址 修改一个 两个都会变
+                修改son的原型对象 father的原型对象也会变
+
+
+3.作用域与作用域链
+    第五天.8-15
+    - 函数声明的两种方式
+        详见8 匿名/命名
+    - 作用域
+        作用域就是一个独立的地盘，让变量不会外泄、暴露出去。也就是说作用域最大的用处就是隔离变量，不同作用域下同名变量不会有冲突
+        全局 局部 块级作用域(ES6新增)
+        函数的作用域在函数定义时就确定了 而不是看运行时
+    - 作用域链
+        从当前作用域开始一层层往上找某个变量，如果找到全局作用域还没找到，就放弃寻找 。这种层级关系就是作用域链
+    - 预解析
+        详见14/15
+        了解变量提升 函数提升
+        注意 var a = f(){}是变量提升
+        function a(){} 是函数提升
+        因此 a() ,  var a = f(){} 是undefined
+             a() , function a(){} 可以执行
+    - !需要注意的是，js 采用的是静态作用域，所以函数的作用域在函数定义时就确定了
+        https://github.com/mqyqingfeng/Blog/issues/3
+        执行 foo 函数，先从 foo 函数内部查找是否有局部变量 value，如果没有，就根据书写的位置，
+        [查找上面一层的代码]，也就是 value 等于 1，所以结果会打印 1。
+
+4.执行上下文
+    当 JavaScript 代码执行一段可执行代码时，会创建对应的执行上下文。
+    对于每个执行上下文，都有三个重要属性：,会产生作用域链/变量对象/this
+    通过执行上下文栈来管理执行上下文,一段代码执行时压入,执行完弹出
+
+    当进入全局代码,funtion函数,eval函数指定的代码,module代码时,会创建新的执行上下文,并入栈
+
+
+
+    作用域链
+    创建一个执行上下文,作用域链就是这个执行上下文的变量对象,以及在这个函数处于的执行上下文的变量对象,以及再往上的变量对象...
+    函数并非根据调用关系形成作用域链,而是创建的位置形成的作用域链
+
+    首先生成全局执行上下文,压入栈,定义变量对象,作用域链(装的就是全局执行上下文的变量对象),this,将作用域链存入函数的内部属性
+    生成函数执行上下文,压入栈,定义变量对象,作用域链(从内部属性取出装的父级的作用域链,即全局执行上下文的变量对象,然后是函数变量对象),this,将作用域链存入函数的内部属性
+
+
+
+5.this
+    https://www.ruanyifeng.com/blog/2018/06/javascript-this.html
+    https://www.bilibili.com/video/BV1BE411677T/?spm_id_from=333.788
+
+    默认绑定:函数里,谁调用,this就是谁,调用f(),this就是window
+    隐式绑定:对象里调,this是对象
+    硬绑定:call,可以指定this是谁
+    构造函数绑定:this是实例对象
+
+    示例:看9分钟
+    牢记,函数中的this,谁调函数,this就是谁
+    对象.函数,this就是对象
+    var x = 对象.函数 , x() , this是window
+
+6.闭包
+    - ! ! ! 了解执行上下文和作用域/作用域链的关系 看闭包的视频 
+        这个视频很重要,把3，4，6串起来了
+        第二个例子中,这里是for循环先执行，执行完毕后，i=5，然后执行函数
+
+    - 闭包
+        https://github.com/mqyqingfeng/Blog/issues/9
+        重点:
+        当 f 函数执行的时候，checkscope 函数上下文已经被销毁了啊(即从执行上下文栈中被弹出)，
+        怎么还会读取到 checkscope 作用域下的 scope 值呢？
+        我们知道 f 执行上下文维护了一个作用域链：
+        就是因为这个作用域链，f 函数依然可以读取到 checkscope 的值
+
+        问题:为什么checkscope 函数被弹出?
+        看https://github.com/mqyqingfeng/Blog/issues/4的思考题
+        return f 和  return f()的区别
+
+        所以，让我们再看一遍实践角度上闭包的定义：
+        在某个内部函数的执行上下文创建时，会将父级函数的对象加到内部函数的 [[scope]] 中，形成作用域链，(作用域链中存的是对象)
+        所以即使父级函数的执行上下文销毁（即执行上下文栈弹出父级函数的执行上下文），
+        但是因为其活动对象还是实际存储在内存中可被内部函数访问到的，从而实现了闭包。
+
+
+        问题:
+            var data = [];
+
+            for (var i = 0; i < 3; i++) {
+            data[i] = function () {
+                console.log(i);
+            };
+            }
+
+            data[0]();
+            data[1]();
+            data[2]();
+
+            等价于
+
+            var data = [];
+
+            
+            data[1] = function () {
+                console.log(i);
+                函数还没执行
+            };
+            
+            data[2] = function () {
+                console.log(i);
+                函数还没执行
+            };
+
+            data[3] = function () {
+                console.log(i);
+                函数还没执行
+            };
+
+            data[0]();
+            data[1]();
+            data[2]();
+
+            执行函数时,自己上下文没有i,会访问作用域链中的全局执行上下文中的i,即3
+        ----
+            当使用立即执行函数包装之后,data[0]Context 的 AO 并没有 i 值，
+            所以会沿着作用域链从匿名函数 Context.AO 中查找，这时候就会找 i 为 0，
+            找到了就不会往 globalContext.VO 中查找了，即使 globalContext.VO 也有 i 的值(值为3)，所以打印的结果就是0。
+
+            也就是说 立即执行函数把这一轮的i作为上下文保存起来了,这个值是0,而不是全局上下文的3  
+        ----
+            function print(fn) {
+            const a = 200;
+            fn();
+            }
+
+            const a = 100;
+            function fn() {
+            console.log(a);
+            }
+
+            print(fn); // 100
+        ----
+            function create() {
+            const a = 100;
+
+            return function () {
+                console.log(a);
+            };
+            }
+
+            const fn = create();
+            const a = 200;
+            fn(); // 100
+
+            全局执行上下文入栈->create执行上下文入栈->执行完毕create执行上下文出栈
+            ->匿名函数执行上下文入栈
+            ->输出a,没有,作用域链往上找到create的变量,虽然create执行上下文被销毁了,但是被匿名函数作用域链保存了变量
+
+7.手写call,apply,bind
+    - 定义
+        改变函数内this指向
+        第三天.04-06
+    - call
+        fn.call(obj);
+        变为
+        obj.fn = fn;
+        obj.fn();
+        delete obj.fn;
+        思想,把执行的函数添加到要call的对象上,执行对象.函数,然后delete掉对象上的函数
+    - apply
+        传参不同
+    - bind
+
+
+
+
+8. new 实现
+    首先创一个新的空对象。
+    根据原型链，设置空对象的 __proto__ 为构造函数的 prototype 。
+    构造函数的 this 指向这个对象(使用call / apply方法)，执行构造函数的代码（为这个新对象添加属性）。
+    判断函数的返回值类型，如果是值类型，返回创建的对象。如果是引用类型，就返回这个引用类型的对象。
+
+9.异步
+    9.1.事件循环/宏任务和微任务
+        https://www.bilibili.com/video/BV1Si4y1c7rh?p=3
+        - 事件循环
+            执行同步代码
+            定时器让web api写了一个定时器
+            5s后把回到函数放入回调队列
+            同步代码执行完毕,调用栈变空
+            事件循环开始
+            让回调队列的回调函数,进入到调用栈
+            回调函数进入调用栈,执行代码
+            https://www.bilibili.com/video/av845231766?from=search&seid=17410221738587006701
+
+        - 宏任务和微任务
+            宏任务(浏览器规定的):settimeout,setinterval,dom事件,ajax请求
+            微任务(ES6规定的):Promise,async/await
+            顺序:微任务->dom渲染->宏任务
+            https://www.bilibili.com/video/BV1CA411V791/?spm_id_from=333.788.recommend_more_video.-1
+
+        ; - DOM事件与事件循环
+        ;     比如click事件,会绑定一个回调函数,点击,函数进入回调队列
+
+        ; - DOM渲染与事件循环
+        ;     JS是单线程的,需要留一些时间给dom渲染
+        ;     例如,执行栈空闲,定时器还有3s才把回调函数放入回调队列
+        ;     这时执行栈没事干,就会进行dom渲染
+
+        - 为什么微任务更早
+            执行栈在执行宏任务时,比如定时器,会通过web api ,然后进入回调队列
+            但微任务会进入,微任务队列
+
+            ! ! !最终的过程:
+                执行栈同步代码清空(把微任务放到微任务队列,宏任务通过web api进入回调队列)->执行微任务->DOM渲染->事件循环
+
+    9.2.Promise
+        详见ES6.异步编程
+        - 解释
+            Promise 是异步编程的一种解决方案，比传统的解决方案——回调函数和事件——更合理和更强大。
+            所谓Promise，简单说就是一个容器，里面保存着某个未来才会结束的事件（通常是一个异步操作）的结果。
+            然后介绍状态,可以用xx改变状态,根据状态执行回调函数
+        - 写法
+            const p = new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    //30%  1-100  1 2 30
+                    //获取从1 - 100的一个随机数
+                    let n = rand(1, 100);
+                    //判断
+                    if(n <= 30){
+                        resolve(n);  将 promise 对象的状态设置为 『成功』
+                    }else{
+                        reject(n);  将 promise 对象的状态设置为 『失败』
+                    }
+                }, 1000);
+            });
+
+            p.then((value) => {
+                成功回调
+            }, (reason) => {
+                失败回调
+            });
+
+        - Promise 的状态
+            实例对象中的一个属性 『PromiseState』
+            * pending  未决定的(初始)
+            * resolved / fullfilled  成功
+            * rejected  失败
+
+        - Promise 对象的值
+            实例对象中的另一个属性 『PromiseResult』
+            保存着异步任务『成功/失败』的结果
+            * resolve
+            * reject 
+            这两个可以对PromiseResult进行修改
+            resolve(XXX)
+            reject(XXX)
+            括号里的XXX就是PromiseResult
+
+        - API
+            then catch是实例(实例对象.方法)有的方法
+            resolve reject all race都是构造函数(Promise.方法)的方法
+            - then/catch:               
+                then有两个箭头函数value reason,catch有一个箭头函数reason
+            - resolve:
+                返回一个成功/失败的 promise 对象
+                如果传入的参数为 非Promise类型的对象, 则返回的结果为成功promise对象 值是521
+                如果传入的参数为 Promise 对象, 则参数的结果决定了 resolve 的结果
+            - reject:
+                无论传什么参,返回一个失败的 promise 对象
+                数值和resolve的规则一样
+            - all:
+                返回一个新Promise,参数是promise数组
+                若全部成功,则状态成功,值为一个数组,内容是几个promise参数的值
+                若不是全部成功,状态为失败,值为第一个失败的promise参数的值
+            - race:
+                返回一个新Promise,参数是数组
+                意思就是说，Promise.race([p1, p2, p3])里面哪个结果获得的快，就返回那个promise参数结果，不管结果本身是成功状态还是失败状态。
+
+        - 关键问题
+            1.修改promise状态的三种方式
+            2.一个promise对象有多个回调会怎么样
+            3.改变状态和指定回调问题,宏微任务
+            4.then方法会返回一个promise
+                由then()指定的回调函数执行的结果决定
+                thorw
+                return 非Promise
+                return Promise
+            5.串联
+                下面的then都需要根据上面的then的结果执行
+                写成回调函数就会形成回调地狱
+                Proimse能够将多个异步请求变为同步请求，但前提是，这些异步请求必须以.then的链式调用来使用才可以
+            6.异常穿透
+            7.中断Promise链
+                返回一个 pendding状态的promise
+                因为then方法需要状态改变为成功失败时 才会调用 因此在这里中断
+
+        - aysnc/await
+            - 解释
+                async/await是非常棒的语法糖
+                async/await的用处就是：用同步方式，执行异步操作
+                在async函数中，await规定了异步操作只能一个一个排队执行，从而达到用同步方式，执行异步操作的效果
+            - async
+                async定义的方法会返回一个promise
+                具体规则和then方法一样
+                thorw
+                return 非Promise(如果在函数中 return 一个直接量，async 会把这个直接量通过 Promise.resolve() 封装成 Promise 对象)
+                return Promise
+            - await
+                直接读取promise的值
+                根据await右边的值决定,有三种情况
+                如果是失败的Promise 需要try catch
+            - 和promise的关系
+                async/await 是消灭异步回调的最终方法
+                async 函数返回Promise对象
+                await 相当于 Promise 的 then。
+                try...catch 可捕获异常，代替了 Promise 的 catch。
+
+10.BOM/DOM
+    10.1.获取元素
+        5种方法,id(单个),标签,类,选择器(单个),选择器all
+    10.2.
+        innerText 不识别html标签 非标准  去除空格和换行
+        innerHTML 识别html标签 W3C标准 保留空格和换行的
+    10.3.排他思想
+    10.4.节点
+        X.parentNode(单个)
+        X.children(数组),ol.children[ol.children.length - 1]最后一个
+        document.createElement('li') 创建节点   
+        node.appendChild(child) 添加节点  node 父级  child 是子级 后面追加元素  类似于数组中的push
+        node.insertBefore(child, 指定元素) 添加节点
+        node.removeChild(child) 删除
+        node.cloneNode() 克隆
+    10.5.注册事件
+        传统 btns[0].onclick = function() {}
+        事件侦听注册事件 btns[1].addEventListener('click', function() {}
+    10.6.删除事件
+        传统 divs[0].onclick = null
+        事件侦听注册事件 divs[1].removeEventListener('click', fn) 不可写匿名函数 函数需要一个名字
+    10.7.DOM事件流三个阶段
+        捕获阶段 当前目标阶段 冒泡阶段
+        addEventListener 第三个参数是 true 那么则处于捕获阶段  document -> html -> body -> father -> son
+        addEventListener 第三个参数是 false 或者 省略 那么则处于冒泡阶段  son -> father ->body -> html -> document
+    10.8.事件对象
+        function(e){e.target}
+    10.9.阻止默认行为
+        e.preventDefault() 阻止默认行为（事件） 让链接不跳转 或者让提交按钮不提交
+    10.10.阻止冒泡
+        e.stopPropagation()
+    10.11.事件委托
+        将本应该注册在子元素上的处理事件注册在父元素上，这样点击子元素时发现其本身没有相应事件就到父元素上寻找作出相应(冒泡)
+    10.12.鼠标事件对象
+        e.clientX 鼠标在可视区的x和y坐标
+        e.pageX 鼠标在页面文档的x和y坐标
+        e.screenX 鼠标在电脑屏幕的x和y坐标
+        clientX clientY 原点位置：可视窗口的左上角为原点
+        pageX pageY     原点位置：整个页面的左上角(包括滚出去的波动距离)
+        screenX screenY 原点位置：电脑屏幕的左上角
+    10.13.键盘
+        e.keyCode 按下的键的ASCII
+    10.14.BOM
+        BOM 的顶级[对象]是 window
+        DOM 的顶级[对象]是 document
+        BOM 比 DOM 更大，它包含 DOM
+        window它是一个全局对象。定义在全局作用域中的变量、函数都会变成 window 对象的属性和方法。
+        在调用的时候可以省略 window，前面学习的对话框都属于 window 对象方法，如 alert()、prompt() 等
+        常见事件:load,DOMContentLoaded
+    10.15.offset
+        X.offsetLeft/Top 它以带有定位的父亲为准  如果么有父亲或者父亲没有定位 则以 body 为准
+        X.offsetWidth/Height 可以得到元素的大小 宽度和高度 是包含padding + border + width 
+        与style的区别:
+            style的内嵌样式 js无法得到数值 只能修改
+            所以，我们想要获取元素大小位置，用offset更合适
+            所以，我们想要给元素更改值，则需要用style改变
+        计算鼠标在盒子里的坐标:
+            用鼠标距离页面的坐标减去盒子在页面中的距离
+    10.16.client
+        X.clientLeft/Top 左/上边框的大小
+        X.clientWidth/Height 元素的大小 padding + width 
+    10.17.scroll
+        X.scrollLeft/Top 被卷去的左/上距离
+        X.clientWidth/Height 元素中内容的实际宽高 不含border
+    10.18.缓动动画
+        设置一个定时器
+        计算offsetleft和target的差值/10
+        如果移动到了就清除定时器
+        否则设置style的left为offsetleft+计算距离
+        step需要取整,防止小于1不移动
+    10.19.
+        getAttribute()和setAttribute()
+
+11.数组方法
+    https://www.cnblogs.com/1463069300limingzhi/p/10639264.html
+    join() 返回字符串
+    push() 返回修改后数组的长度
+    pop() 返回移出的项
+    shift() 返回删除元素的值
+    unshift() 并返回数组的长度 
+    sort() 接受一个函数,如果第一个参数应该位于第二个之前则返回一个负数，如果两个参数相等则返回 0，如果第一个参数应该位于第二个之后则返回一个正数
+    reverse()
+    slice() 返回从原数组中指定开始下标到结束下标之间的项组成的新数组
+    splice() 起始下标,数量,替换的新元素
+    indexOf()/lastIndexOf()
+    concat() 返回一个新数组 a.concat(b)
+    ---
+    find() 返回数组中第一个满足条件return true的元素
+    forEach() 给一个函数,参数为当前元素,下标,原数组,不会修改原数组,除非直接操作第三个参数
+    map() 返回一个新数组,映射,对原数组每一项做处理,return 
+    filter() 返回一个新数组,过滤,满足条件则return true
+    every() 判断数组中每一项都是否满足条件，只有所有项都满足条件，才会返回true
+    some() 只要有一项满足条件(只要有一个return true)，就会返回true
+    reduce()和 reduceRight() 
+        迭代数组的所有项，然后构建一个最终返回的值
+        reduce()方法从数组的第一项开始，逐个遍历到最后。而 reduceRight()则从数组的最后一项开始，向前遍历到第一项
+        接收两个参数：一个在每一项上调用的函数和（可选的）作为归并基础的初始值。
+        调用函数接收 4 个参数：前一个值、当前值、项的索引和数组对象
+        函数返回的任何值都会作为第一个参数自动传给下一项
+
+    哪些改变原数组?
+    https://juejin.cn/post/6844904192671219719
+
+12.ES6
+    12.1.let const
+        https://www.bilibili.com/video/av753126256?from=search&seid=8084373232794870569&spm_id_from=333.337.0.0
+        let:不可重复声明,不存在变量提升,可修改, 可形成块级作用域
+        const:不可重复声明,不存在变量提升,不可修改(一定要赋初始值,数组对象可以改),可形成块级作用域
+        块级作用域:里面要用let const,别用var,循环是一种块级作用域
+        暂时性死区:
+            https://juejin.cn/post/6983702070293430303
+            let在被显式赋值之前不会被赋予初始值，并且在赋值之前读写变量都会导致 ReferenceError 的报错。
+            从代码块(block)起始到变量求值(包括赋值)以前的这块区域，称为该变量的暂时性死区。
+    12.2.解构赋值
+        对象的
+        const person = {
+        name: 'jsPool',
+        country: 'China'
+        };
+        const {name:fullname,country:place} = person
+        --
+        const student = {
+        name:'jsPool',
+        age:20,
+        scores:{
+            math:95,
+            chinese:98,
+            english:93
+            }
+        }
+        { name,scores:{ math = 0,chinese = 0, english = 0} } = student
+        数组的
+        [xiao, liu, zhao, song] = ['小沈阳','刘能','赵四','宋小宝']
+    12.3.模板字符串
+        可以换行,拼接变量
+    12.4.箭头函数
+        - this 始终指向函数声明时所在作用域下的 this 的值
+        - 不能作为构造函数,并new实例化对象,因此也没有原型
+        - 不能使用 arguments 变量 , arguments是函数参数的类数组
+        - 简写
+        - 实践
+            见ES6.08,箭头函数适合与 this 无关的回调. 定时器, 数组的方法回调
+            例子1:点击事件里有个定时器,定时器的函数是普通函数时(回调函数最后执行,所处地方是全局),this是window,箭头的this是click对象
+            例子2:数组.数组函数(一个普通函数/箭头函数),函数里的this会指向window,但如果这条语句外面包了个东西,就用箭头函数了
+    12.5.参数默认
+        可以与解构赋值结合,function connect({host="127.0.0.1", username,password, port}){}
+    12.6.rest 
+        function fn(a,b,...args){} 获取多余参数 放在最后 是数组
+    12.7.扩展运算符
+        扩展运算符能将『数组』转换为逗号分隔的『参数序列』
+        可以用于数组的合并,[...kuaizi, ...fenghuang]
+        数组的克隆,[...sanzhihua],直接相等会地址相同
+    12.8.symbol
+        不是构造函数 不需要new Symbol值不是对象
+        接受一个字符串参数,[是独一无二的值],即使参数相等,两个symbol也不相等
+        但是用symbol.for()创建,会搜索有没有这哥symbol,有就使用,没有就创建
+        使用场景:一个对象已经有了某个方法,要给他添加同名的方法,可以用symbol
+        在遍历的时候不会出现symbol
+    12.9.迭代器/生成器
+    12.10.set/map 
+        set:集合
+            参数为一个数组,set没有重复值,可以用于
+            去重(使用扩展符,让数组转set再转数组)
+            交集(去重后使用filter检查该项是否在另一个数组里)
+            并集(数组合并转set,再转数组)
+            差集（去重后使用filter检查该项是否不在另一个数组里)
+            方法:has,add,delete,clear
+        map:字典
+    12.11.类
+        - 概念
+            语法糖,ES6类能做的ES5都能做
+            class语法相对原型、构造函数、继承更接近传统语法，它的写法能够让对象原型的写法更加清晰、面向对象编程的语法更加通俗 
+            ES5中创建类的方法：新建一个构造函数，定义一个方法并且赋值给构造函数的原型
+            ES6:class,构造函数,方法
+        - 静态成员
+            静态成员 在构造函数本身上添加的成员 ,静态成员只能通过构造函数来访问
+            和 OldPhone.prototype.size = '5.5inch'不一样;//写在原型里 每个实例都有
+            ES5:OldPhone.name = '手机';
+            ES6:在class{}里写,static name = '手机';
+        - 继承
+            ES5:...
+            ES6:extends,是ES5的语法糖,子类可以使用super继承,super表示的是调用父类的构造函数
+        - get set 
+            可以对某个属性使用get set,访问修改时会触发函数
+    12.12.Object.assign
+        合并对象,后面的会覆盖前面的
+    12.13.Promise,Module,async/await
+
+13.其他
+    13.1.for in/of 
+        在对数组或对象进行遍历时，我们经常会使用到两种方法
+        使用for in会遍历所有的可枚举属性，包括原型，如果不想遍历原型方法和属性的话，
+        可以在循环内部判断一下，使用hasOwnProperty()方法可以判断某属性是不是该对象的实例属性
+        for of遍历的是元素值，而且for of遍历的只是内的元素，不包括原型属性和索引
+        https://juejin.cn/post/6916058482231754765
+    13.2.图片懒加载/预加载
+        - 懒加载
+            网页中延迟加载图像，是一种很好优化网页性能的方式.户滚动到它们之前，可视区域外的图像不会加载。
+            - 方法1
+                给img写一个自定义属性xx = '图片地址',没有src,浏览器不知道图片从哪来,不会加载
+                给window写一个滚动事件,获取image数组,foreach遍历所有图片,如果图片距离视窗顶端距离小于视窗高度
+                则加载,即设置该图片src等于自定义属性的图片地址,缺点是会不断触发事件
+            - 方法2
+                intersectionObserver构造函数
+                给img写一个自定义属性xx = '图片地址',没有src,浏览器不知道图片从哪来,不会加载
+                const observer = new intersectionObserver(回调函数),在回调函数里给src赋值,加载后,也就是赋值后,observer.unobserve(目标),取消观察
+                遍历img,调用observer.observe(目标图片),看见和丢失目标都会触发一次函数
+        - 预加载
+            将所有所需的资源提前请求加载到本地，这样后面在需要用到时就直接从缓存取资源
+
+        
+
+
+14.五十知识点 
+    6.什么是变量提升？函数提升
+        函数提升优先级 > 变量提升优先级
+    8、解决遍历对象时，把原型上的属性遍历出来了咋办？
+        hasOwnProperty
+    9、valueOf 与 toString
+        基本上，所有JS数据类型都拥有这两个方法，null除外
+        valueOf 和 toString 几乎都是在出现操作符(+-*/==><)时被调用（隐式转换）。
+        - toString 
+            返回一个表示该对象的字符串，当对象表示为文本值或以期望的字符串方式被引用时，toString方法被自动调用。
+    10、JavaScript变量在内存中具体存储形式？
+    12、null和undefined的异同点有哪些？
+        相同点
+            都是空变量
+            都是假值，转布尔值都是false
+            null == undefined 为 true
+        不同点
+            typeof判断null为object，判断undefined为undefined
+            null转数字为0，undefined转数字为NaN
+            null是一个对象未初始化，undefined是初始化了，但未定义赋值
+            null === undefined 为 false
+    14、为什么typeof null 是object？
+        不同的数据类型在底层都是通过二进制表示的，二进制前三位为000则会被判断为object类型，
+        而null底层的二进制全都是0，那前三位肯定也是000，所以被判断为object
+    15、== 与 === 的区别？
+        ==：在比较过程中会存在隐式转换
+        ===：需要类型相同，值相同，才能为true
+    16、JavaScript的隐式转换规则？  
+        1、转成string类型： +（字符串连接符
+        2、转成number类型：++/--(自增自减运算符) + - * / %(算术运算符) > < >= <= == != === !=== (关系运算符)
+        3、转成boolean类型：!（逻辑非运算符)
+    17、双等号左右两边的转换规则？
+        类型相同比较值
+        null == undefined 为 true
+        如果有一个操作数是布尔值，则在比较相等性之前先将其转换为数值——false转换为0，而true转换为1；
+        如果一个操作数是字符串，另一个操作数是数值，在比较相等性之前先将字符串转换为数值
+        如果一个操作数是对象，另一个操作数不是，则调用对象的toString()方法，用得到的基本类型值按照前面的规则进行比较
+    20、[] == ![] 为什么是 true ？
+        ! 优先级高于 ==，[]不是假值，所以先转换成 [] == false
+        右边为布尔值，false先转数字0，所以可转换为[] == 0
+        左边为对象，[]调用toString转为 ''，转换为'' == 0
+        左边为字符串，''转换为0，最终为 0 == 0
+    26、JavaScript的事件流模型有哪些？
+        捕获 目标 冒泡
+    33、Set与Array的区别是什么？
+        重复
+    34、Map与Object的区别是什么？
+        Map 和 Object 看起来都是用键值对来存储数据，那么他们有什么不同呢
+        https://blog.csdn.net/ckwang6/article/details/89215396
+    36、处理异步的方法有哪些？
+        回调函数
+        promise
+        async await
+        事件监听
+        发布订阅
+    37、JavaScript继承方式有几种？
+    38、创建一个对象的方式有哪几种？
+        构造函数,类,字面量
+
+
+跨域产生的原因，同源策略是什么
+get 和 post 的区别
+
+
+

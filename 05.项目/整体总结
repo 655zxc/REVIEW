@@ -1,0 +1,50 @@
+1.本项目含有的功能
+
+1.使用vuecli创建项目
+    vue create xx
+
+    1.1.项目结构
+        |-- node_modules
+       *|-- public
+        |-- index.html: 主页面文件
+       *|-- src
+        |-- main.js: 应用入口js
+        |-- babel.config.js: babel的配置文件
+       *|-- vue.config.js: vue的配置文件
+        |-- .gitignore: git版本管制忽略的配置
+       *|-- package.json: 应用包配置文件 
+        |-- README.md: 应用描述说明的readme文件
+
+    1.2.src目录
+        api ajax请求
+        components 非路由组件
+        page 路由组件
+        mock 模拟数据
+        router 路由相关
+        store vuex相关
+        utils 工具函数相关
+        App.vue 应用组件
+        main.js
+
+2.header/footer
+    固定的
+
+3.中间路由部分
+    中间部分为路由组件 路由有
+    首页 home
+    搜索页 search
+    商品详情 detail
+    加入购物车成功页 addcartsuccess
+    购物车 shopcart
+    订单交易 trade
+    支付成功 paysuccess
+    支付 pay
+    登录 login
+    注册 register
+    个人中心 center
+
+---------------------------------------------------------------------
+
+
+
+     
